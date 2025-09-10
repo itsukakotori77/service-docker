@@ -1,0 +1,109 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: service_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: myapp
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - service_local_network
+    labels:
+      - "group=service-local"
+
+  php:
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+    container_name: service_php
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./php/src:/var/www/html
+    depends_on:
+      - mysql
+    networks:
+      - service_local_network
+    environment:
+      - DB_HOST=mysql
+      - DB_NAME=myapp
+      - DB_USER=appuser
+      - DB_PASSWORD=apppassword
+    labels:
+      - "group=service-local"
+
+  golang:
+    build:
+      context: ./golang
+      dockerfile: Dockerfile
+    container_name: service_golang
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./golang/src:/app
+    depends_on:
+      - mysql
+    networks:
+      - service_local_network
+    environment:
+      - DB_HOST=mysql
+      - DB_NAME=myapp
+      - DB_USER=appuser
+      - DB_PASSWORD=apppassword
+    labels:
+      - "group=service-local"
+
+  redis:
+    image: redis:latest
+    container_name: service_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - service_local_network
+    command: redis-server --appendonly yes
+    labels:
+      - "group=service-local"
+
+  postgres:
+    image: postgres:15
+    container_name: service_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: myapp_pg
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: pgpassword
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - service_local_network
+    labels:
+      - "group=service-local"
+
+volumes:
+  mysql_data:
+  redis_data:
+  postgres_data:
+
+networks:
+  service_local_network:
+    driver: bridge
+    labels:
+      - "group=service-local"
