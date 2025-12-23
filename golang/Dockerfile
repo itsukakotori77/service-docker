@@ -1,16 +1,18 @@
-FROM php:8.2-apache
+FROM golang:1.25.5-alpine
 
-# Install PHP extensions for MySQL
-RUN docker-php-ext-install mysqli pdo pdo_mysql
+# Install dependencies
+RUN apk add --no-cache git ca-certificates gcc musl-dev
 
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
-
-# Enable Apache mod_rewrite
-RUN a2enmod rewrite
+WORKDIR /app
 
 # Copy source code
-COPY src/ /var/www/html/
+COPY src/ ./
 
-# Set proper permissions
-RUN chown -R www-data:www-data /var/www/html
+# Initialize or download modules
+RUN if [ ! -f go.mod ]; then \
+      go mod init myapp; \
+    else \
+      go mod download; \
+    fi
+
+CMD ["tail", "-f", "/dev/null"]
